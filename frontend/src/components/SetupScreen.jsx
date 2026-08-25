@@ -3,7 +3,7 @@ import './SetupScreen.css';
 
 const isProd = import.meta.env.PROD;
 const API_URL = import.meta.env.VITE_API_URL || (isProd
-  ? 'https://voice-interview-agent-gh8x.onrender.com/api/interview'
+  ? 'https://ai-interviewer-zhmd.onrender.com/api/interview'
   : 'http://localhost:4000/api/interview');
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB

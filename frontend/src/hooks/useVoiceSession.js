@@ -2,10 +2,10 @@ import { useState, useRef, useCallback } from 'react';
 
 const isProd = import.meta.env.PROD;
 const API_URL = import.meta.env.VITE_API_URL || (isProd 
-  ? 'https://voice-interview-agent-gh8x.onrender.com/api/interview' 
+  ? 'https://ai-interviewer-zhmd.onrender.com/api/interview' 
   : 'http://localhost:4000/api/interview');
 const WS_URL = import.meta.env.VITE_WS_URL || (isProd 
-  ? 'wss://voice-interview-agent-gh8x.onrender.com/ws' 
+  ? 'wss://ai-interviewer-zhmd.onrender.com/ws' 
   : 'ws://localhost:4000/ws');
 
 export function useVoiceSession() {
