@@ -392,7 +392,7 @@ export default function SetupScreen({ onStartSession, language, onLanguageChange
             onChange={(e) => onLanguageChange(e.target.value)}
             disabled={loading}
           >
-            <option value="en">🇺🇸 English (US)</option>
+            <option value="en">🇬🇧 English (UK)</option>
             <option value="hi">🇮🇳 Hindi (IN)</option>
             <option value="de">🇩🇪 German (DE)</option>
           </select>
@@ -410,7 +410,7 @@ export default function SetupScreen({ onStartSession, language, onLanguageChange
           {loading ? (
             <>
               <div className="spinner" style={{ width: '18px', height: '18px', borderWidth: '2px' }} />
-              <span>Parsing Documents & Preparing...</span>
+              <span>Processing...</span>
             </>
           ) : (
             <>

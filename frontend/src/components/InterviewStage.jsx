@@ -28,6 +28,14 @@ export default function InterviewStage({ language, sessionId, onEnd }) {
   const audioChunksRef = useRef([]);
   const streamRef = useRef(null);
   
+  // VAD / Silence detection refs
+  const micAudioContextRef = useRef(null);
+  const micAnalyserRef = useRef(null);
+  const vadIntervalRef = useRef(null);
+  const hasUserSpokenRef = useRef(false);
+  const speechStartTimeRef = useRef(null);
+  const silenceStartRef = useRef(null);
+  
   // Local UI state for bottom controls
   const [captionsOn, setCaptionsOn] = useState(true);
   const [cameraOn, setCameraOn] = useState(true);
@@ -41,7 +49,7 @@ export default function InterviewStage({ language, sessionId, onEnd }) {
   const [activeDuration, setActiveDuration] = useState(0);
   const [timeUpSent, setTimeUpSent] = useState(false);
   
-  // Tick active time when status is 'ready' or 'speaking'
+  // Tick active time when status is 'ready' or 'speaking' (Pauses automatically during 'processing' / system latency)
   useEffect(() => {
     let interval = null;
     if (status === 'ready' || status === 'speaking') {
@@ -488,7 +496,38 @@ export default function InterviewStage({ language, sessionId, onEnd }) {
     nextQuestion();
   }, [nextQuestion]);
 
-  // Mic recording handlers
+  // VAD / Silence detection cleanup
+  const cleanupVad = useCallback(() => {
+    if (vadIntervalRef.current) {
+      clearInterval(vadIntervalRef.current);
+      vadIntervalRef.current = null;
+    }
+    if (micAudioContextRef.current) {
+      if (micAudioContextRef.current.state !== 'closed') {
+        micAudioContextRef.current.close().catch(() => {});
+      }
+      micAudioContextRef.current = null;
+      micAnalyserRef.current = null;
+    }
+    hasUserSpokenRef.current = false;
+    speechStartTimeRef.current = null;
+    silenceStartRef.current = null;
+  }, []);
+
+  const stopRecording = useCallback(() => {
+    cleanupVad();
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, [cleanupVad]);
+
+  // Mic recording handler with Web Audio API Voice Activity & Silence Detection
   const startRecording = useCallback(() => {
     if (status !== 'ready' || !streamRef.current || isRecording) return;
 
@@ -500,6 +539,21 @@ export default function InterviewStage({ language, sessionId, onEnd }) {
     audioTracks.forEach(t => { t.enabled = true; });
     const audioStream = new MediaStream(audioTracks);
 
+    // Initialize VAD Analyzer Node for Voice Detection
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const micCtx = new AudioCtx();
+      micAudioContextRef.current = micCtx;
+      const source = micCtx.createMediaStreamSource(audioStream);
+      const analyserNode = micCtx.createAnalyser();
+      analyserNode.fftSize = 512;
+      analyserNode.smoothingTimeConstant = 0.3;
+      source.connect(analyserNode);
+      micAnalyserRef.current = analyserNode;
+    } catch (e) {
+      console.warn('[VAD] Failed to initialize mic analyzer:', e);
+    }
+
     const recorder = new MediaRecorder(audioStream, options);
     recorder.ondataavailable = (e) => {
       if (e.data && e.data.size > 0) {
@@ -509,7 +563,7 @@ export default function InterviewStage({ language, sessionId, onEnd }) {
     recorder.onstop = () => {
       const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
       if (blob.size > 0) {
-        console.log(`[Mic] Submitting complete answer blob (${blob.size} bytes)...`);
+        console.log(`[Mic] Submitting answer blob (${blob.size} bytes)...`);
         sendAudio(blob);
       }
     };
@@ -518,27 +572,79 @@ export default function InterviewStage({ language, sessionId, onEnd }) {
     recorder.start(250);
     setIsRecording(true);
     
-    // Start timer
+    // Start local duration timer
     setRecordDuration(0);
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setRecordDuration(prev => prev + 1);
     }, 1000);
-  }, [status, isRecording, sendAudio]);
 
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
+    // Start VAD Silence Detection
+    hasUserSpokenRef.current = false;
+    speechStartTimeRef.current = null;
+    silenceStartRef.current = null;
+
+    if (vadIntervalRef.current) clearInterval(vadIntervalRef.current);
+    vadIntervalRef.current = setInterval(() => {
+      if (!micAnalyserRef.current) return;
+      const bufferLength = micAnalyserRef.current.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      micAnalyserRef.current.getByteFrequencyData(dataArray);
+
+      let sum = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        sum += dataArray[i];
+      }
+      const avgVol = sum / bufferLength;
+
+      const SPEECH_THRESHOLD = 14; // Speech energy threshold
+      const SILENCE_DURATION_MS = 2000; // 2.0 seconds of silence to auto-finish answer
+
+      if (avgVol >= SPEECH_THRESHOLD) {
+        // Candidate is speaking
+        if (!hasUserSpokenRef.current) {
+          hasUserSpokenRef.current = true;
+          speechStartTimeRef.current = Date.now();
+        }
+        silenceStartRef.current = null;
+      } else if (hasUserSpokenRef.current) {
+        // Candidate was speaking, now in silence
+        const now = Date.now();
+        if (!silenceStartRef.current) {
+          silenceStartRef.current = now;
+        } else if (now - silenceStartRef.current >= SILENCE_DURATION_MS) {
+          // Confirm candidate spoke for at least ~800ms before auto-submitting
+          const totalSpeechTime = (silenceStartRef.current || now) - (speechStartTimeRef.current || now);
+          if (totalSpeechTime >= 800) {
+            console.log('[VAD] 2 seconds of silence detected after answer. Auto-submitting response...');
+            stopRecording();
+          }
+        }
+      }
+    }, 100);
+  }, [status, isRecording, sendAudio, stopRecording]);
+
+  // Hands-free Auto-Recording: Starts automatically when AI finishes speaking and status is 'ready'
+  useEffect(() => {
+    if (status === 'ready' && !isAudioPlaying && !isRecording && streamRef.current) {
+      const autoStartTimer = setTimeout(() => {
+        if (status === 'ready' && !isAudioPlaying && !isRecording) {
+          console.log('[Auto-Record] AI finished speaking. Starting mic auto-recording...');
+          startRecording();
+        }
+      }, 400);
+      return () => clearTimeout(autoStartTimer);
     }
-    setIsRecording(false);
+  }, [status, isAudioPlaying, isRecording, startRecording]);
 
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  }, []);
+  // Clean up VAD when unmounting
+  useEffect(() => {
+    return () => {
+      cleanupVad();
+    };
+  }, [cleanupVad]);
 
-  // Safety: If status leaves 'ready' (e.g. AI is speaking or transcribing), ensure recording is stopped
+  // Safety: If status leaves 'ready' (e.g. AI starts speaking or backend is processing), ensure recording is stopped
   useEffect(() => {
     if (status !== 'ready' && isRecording) {
       stopRecording();

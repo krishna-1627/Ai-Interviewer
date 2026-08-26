@@ -11,10 +11,10 @@ export const SUPPORTED_LANGUAGES = ['en', 'hi', 'de'];
 
 export const locales = {
   en: {
-    label: 'English',
+    label: 'English (UK)',
     sttLanguage: 'en',
     ttsVoiceId: '', // Placeholder — set real ElevenLabs voice ID in Phase 7
-    promptInstruction: 'Conduct the interview in English.',
+    promptInstruction: 'Conduct the interview in British English.',
     greeting: 'Hello! Welcome to the AI Intern technical screening. Let\'s get started.',
     farewell: 'Thank you for completing the interview. Let me prepare your feedback.',
   },
