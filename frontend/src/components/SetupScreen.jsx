@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import './SetupScreen.css';
 
 const isProd = import.meta.env.PROD;
@@ -7,6 +7,67 @@ const API_URL = import.meta.env.VITE_API_URL || (isProd
   : 'http://localhost:4000/api/interview');
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+// High-fidelity SVG Flags (identical on all OS platforms without emoji code fallbacks)
+const UKFlag = () => (
+  <svg width="22" height="16" viewBox="0 0 60 30" style={{ borderRadius: '3px', flexShrink: 0, display: 'block', boxShadow: '0 0 1px rgba(0,0,0,0.5)' }}>
+    <clipPath id="uk-flag-clip">
+      <rect width="60" height="30" rx="3" />
+    </clipPath>
+    <g clipPath="url(#uk-flag-clip)">
+      <path d="M0,0 v30 h60 v-30 z" fill="#012169"/>
+      <path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" strokeWidth="6"/>
+      <path d="M0,0 L60,30 M60,0 L0,30" stroke="#C8102E" strokeWidth="4"/>
+      <path d="M30,0 v30 M0,15 h60" stroke="#fff" strokeWidth="10"/>
+      <path d="M30,0 v30 M0,15 h60" stroke="#C8102E" strokeWidth="6"/>
+    </g>
+  </svg>
+);
+
+const IndiaFlag = () => (
+  <svg width="22" height="16" viewBox="0 0 60 30" style={{ borderRadius: '3px', flexShrink: 0, display: 'block', boxShadow: '0 0 1px rgba(0,0,0,0.5)' }}>
+    <clipPath id="in-flag-clip">
+      <rect width="60" height="30" rx="3" />
+    </clipPath>
+    <g clipPath="url(#in-flag-clip)">
+      <rect width="60" height="10" y="0" fill="#FF9933"/>
+      <rect width="60" height="10" y="10" fill="#FFFFFF"/>
+      <rect width="60" height="10" y="20" fill="#138808"/>
+      <circle cx="30" cy="15" r="4.2" fill="none" stroke="#000080" strokeWidth="0.9"/>
+      <circle cx="30" cy="15" r="0.9" fill="#000080"/>
+      {[...Array(12)].map((_, i) => (
+        <line
+          key={i}
+          x1={30 + 4.2 * Math.cos((i * Math.PI) / 6)}
+          y1={15 + 4.2 * Math.sin((i * Math.PI) / 6)}
+          x2={30 - 4.2 * Math.cos((i * Math.PI) / 6)}
+          y2={15 - 4.2 * Math.sin((i * Math.PI) / 6)}
+          stroke="#000080"
+          strokeWidth="0.4"
+        />
+      ))}
+    </g>
+  </svg>
+);
+
+const GermanyFlag = () => (
+  <svg width="22" height="16" viewBox="0 0 60 30" style={{ borderRadius: '3px', flexShrink: 0, display: 'block', boxShadow: '0 0 1px rgba(0,0,0,0.5)' }}>
+    <clipPath id="de-flag-clip">
+      <rect width="60" height="30" rx="3" />
+    </clipPath>
+    <g clipPath="url(#de-flag-clip)">
+      <rect width="60" height="10" y="0" fill="#000000"/>
+      <rect width="60" height="10" y="10" fill="#DD0000"/>
+      <rect width="60" height="10" y="20" fill="#FFCE00"/>
+    </g>
+  </svg>
+);
+
+const LANGUAGES = [
+  { id: 'en', label: 'English (UK)', Flag: UKFlag },
+  { id: 'hi', label: 'Hindi (IN)', Flag: IndiaFlag },
+  { id: 'de', label: 'German (DE)', Flag: GermanyFlag },
+];
 
 export default function SetupScreen({ onStartSession, language, onLanguageChange }) {
   const [jobTitle, setJobTitle] = useState('');
@@ -22,12 +83,27 @@ export default function SetupScreen({ onStartSession, language, onLanguageChange
   const [jdText, setJdText] = useState('');
   const [isJdDragging, setIsJdDragging] = useState(false);
 
+  // Custom language popup state
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const langMenuRef = useRef(null);
+
   // Form submission / UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const resumeInputRef = useRef(null);
   const jdInputRef = useRef(null);
+
+  // Close language popup when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (langMenuRef.current && !langMenuRef.current.contains(e.target)) {
+        setLangMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Helper for file type validation
   const isValidFileType = (file) => {
@@ -377,25 +453,79 @@ export default function SetupScreen({ onStartSession, language, onLanguageChange
         </div>
 
         {/* Language Selection */}
-        <div className="field">
-          <label className="field-label" htmlFor="lang-select-setup">
+        <div className="field custom-language-select-wrapper" ref={langMenuRef}>
+          <label className="field-label" htmlFor="lang-select-trigger">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
               <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
             </svg>
             Interview Language
           </label>
-          <select
-            id="lang-select-setup"
-            className="field-select"
-            value={language || 'en'}
-            onChange={(e) => onLanguageChange(e.target.value)}
-            disabled={loading}
-          >
-            <option value="en">🇬🇧 English (UK)</option>
-            <option value="hi">🇮🇳 Hindi (IN)</option>
-            <option value="de">🇩🇪 German (DE)</option>
-          </select>
+
+          {(() => {
+            const currentLang = LANGUAGES.find((l) => l.id === (language || 'en')) || LANGUAGES[0];
+            const CurrentFlag = currentLang.Flag;
+            return (
+              <>
+                <button
+                  type="button"
+                  id="lang-select-trigger"
+                  className="custom-language-trigger"
+                  onClick={() => setLangMenuOpen(!langMenuOpen)}
+                  disabled={loading}
+                  aria-haspopup="listbox"
+                  aria-expanded={langMenuOpen}
+                >
+                  <div className="custom-language-selected">
+                    <CurrentFlag />
+                    <span>{currentLang.label}</span>
+                  </div>
+                  <svg
+                    className={`dropdown-chevron ${langMenuOpen ? 'open' : ''}`}
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+
+                {langMenuOpen && (
+                  <div className="custom-language-dropdown" role="listbox">
+                    {LANGUAGES.map((item) => {
+                      const isSelected = (language || 'en') === item.id;
+                      const FlagComponent = item.Flag;
+                      return (
+                        <div
+                          key={item.id}
+                          role="option"
+                          aria-selected={isSelected}
+                          className={`custom-language-option ${isSelected ? 'selected' : ''}`}
+                          onClick={() => {
+                            onLanguageChange(item.id);
+                            setLangMenuOpen(false);
+                          }}
+                        >
+                          <div className="custom-language-option-left">
+                            <FlagComponent />
+                            <span>{item.label}</span>
+                          </div>
+                          <div className={`custom-radio-circle ${isSelected ? 'checked' : ''}`}>
+                            {isSelected && <div className="custom-radio-dot" />}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         <div className="setup-divider" />
