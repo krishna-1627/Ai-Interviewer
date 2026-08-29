@@ -33,8 +33,9 @@ export const config = {
   // Embeddings — Google AI Studio (Gemini)
   googleAiStudioApiKey: optionalEnv('GOOGLE_AI_STUDIO_API_KEY'),
 
-  // TTS — ElevenLabs
-  elevenLabsApiKey: optionalEnv('ELEVENLABS_API_KEY'),
+  // TTS — Deepgram Gemma
+  deepgramApiKey: optionalEnv('DEEPGRAM_API_KEY'),
+  deepgramVoiceModel: optionalEnv('DEEPGRAM_VOICE_MODEL', 'flux-gemma-en'),
 
   // Vector DB — Pinecone
   pineconeApiKey: optionalEnv('PINECONE_API_KEY'),
