@@ -148,8 +148,8 @@ export default function InterviewStage({ language, sessionId, onEnd }) {
       // 1. Draw central microphone icon (crisp vector)
       const drawMicrophone = (ctx, cx, cy, size) => {
         ctx.save();
-        ctx.strokeStyle = '#ffc800'; // Rich Gold
-        ctx.fillStyle = 'rgba(255, 200, 0, 0.08)'; // Gold tint
+        ctx.strokeStyle = '#ffffff'; // Pure White
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)'; // White tint
         ctx.lineWidth = 3.5;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
@@ -178,7 +178,7 @@ export default function InterviewStage({ language, sessionId, onEnd }) {
         // Grill details
         ctx.beginPath();
         ctx.lineWidth = 1.8;
-        ctx.strokeStyle = 'rgba(255, 200, 0, 0.6)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
         // Horizontal divider
         ctx.moveTo(rx + 3, ry + h * 0.35);
         ctx.lineTo(rx + w - 3, ry + h * 0.35);
@@ -194,7 +194,7 @@ export default function InterviewStage({ language, sessionId, onEnd }) {
         // Cradle (U-shape)
         ctx.beginPath();
         ctx.lineWidth = 3.5;
-        ctx.strokeStyle = '#ffc800';
+        ctx.strokeStyle = '#ffffff';
         ctx.arc(cx, cy - size * 0.1, w * 0.85, 0, Math.PI, false);
         ctx.stroke();
 
@@ -217,14 +217,14 @@ export default function InterviewStage({ language, sessionId, onEnd }) {
       
       // 2. Draw inner concentric solid ring
       ctx.beginPath();
-      ctx.strokeStyle = 'rgba(255, 200, 0, 0.45)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
       ctx.lineWidth = 1.5;
       ctx.arc(centerX, centerY, rInner, 0, Math.PI * 2);
       ctx.stroke();
       
       // 3. Draw symmetric bracket arcs (left & right)
       ctx.save();
-      ctx.strokeStyle = '#ffc800';
+      ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 3.5;
       ctx.lineCap = 'round';
       
@@ -241,7 +241,7 @@ export default function InterviewStage({ language, sessionId, onEnd }) {
       
       // 4. J.A.R.V.I.S HUD Outer Orbit Ring (Subtle tech elements)
       ctx.save();
-      ctx.strokeStyle = 'rgba(255, 200, 0, 0.22)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
       ctx.lineWidth = 1.0;
       ctx.setLineDash([3, 9]);
       ctx.beginPath();
@@ -256,7 +256,7 @@ export default function InterviewStage({ language, sessionId, onEnd }) {
         const r1 = baseRadius + 11;
         const r2 = baseRadius + 17;
         ctx.beginPath();
-        ctx.strokeStyle = 'rgba(255, 200, 0, 0.45)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
         ctx.lineWidth = 1.5;
         ctx.moveTo(centerX + Math.cos(notchAngle) * r1, centerY + Math.sin(notchAngle) * r1);
         ctx.lineTo(centerX + Math.cos(notchAngle) * r2, centerY + Math.sin(notchAngle) * r2);
@@ -308,12 +308,12 @@ export default function InterviewStage({ language, sessionId, onEnd }) {
       ctx.save();
       ctx.globalCompositeOperation = 'screen';
       ctx.shadowBlur = isAudioPlaying ? 10 : 6;
-      ctx.shadowColor = 'rgba(255, 200, 0, 0.5)';
+      ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
       
-      // Wave 1: Amber Gold base wave (4 & 8 harmonic traveling waves)
+      // Wave 1: Soft white base wave (4 & 8 harmonic traveling waves)
       drawJarvisWave(
         baseRadius - 2,
-        'rgba(255, 175, 0, 0.65)',
+        'rgba(255, 255, 255, 0.55)',
         1.8,
         [
           { n: 4, a: 2.8, s: 1.0 },
@@ -324,10 +324,10 @@ export default function InterviewStage({ language, sessionId, onEnd }) {
         0
       );
       
-      // Wave 2: Main Vibrant Gold wave (Primary speech ripple)
+      // Wave 2: Main crisp white wave (Primary speech ripple)
       drawJarvisWave(
         baseRadius,
-        'rgba(255, 210, 0, 0.95)',
+        'rgba(255, 255, 255, 0.95)',
         2.8,
         [
           { n: 5, a: 3.6, s: 1.2 },
@@ -338,10 +338,10 @@ export default function InterviewStage({ language, sessionId, onEnd }) {
         Math.PI / 3
       );
       
-      // Wave 3: Bright Pale/White-Gold highlight wave
+      // Wave 3: Bright pure white highlight wave
       drawJarvisWave(
         baseRadius + 2,
-        'rgba(255, 248, 220, 0.85)',
+        'rgba(255, 255, 255, 0.75)',
         1.6,
         [
           { n: 6, a: 2.5, s: 0.9 },
