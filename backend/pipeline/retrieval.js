@@ -101,6 +101,43 @@ export async function generateTailoredQuestions(session) {
 }
 
 /**
+ * Asynchronously starts background multi-agent question generation for a session.
+ * Stores the ongoing Promise on session._generatingPromise and caches result on session.dynamicQuestions.
+ *
+ * @param {object} session
+ * @returns {Promise<Array<object>|null>}
+ */
+export function startBackgroundQuestionGeneration(session) {
+  if (!session) return Promise.resolve(null);
+  if (session.dynamicQuestions && session.dynamicQuestions.length > 0) {
+    return Promise.resolve(session.dynamicQuestions);
+  }
+  if (session._generatingPromise) {
+    return session._generatingPromise;
+  }
+  if (!session.resumeText && !session.jdText && !session.jobTitle) {
+    return Promise.resolve(null);
+  }
+
+  console.log(`[Retrieval] Kicking off background question generation for session ${session.id}...`);
+  session._generatingPromise = generateTailoredQuestions(session)
+    .then((questions) => {
+      session.dynamicQuestions = questions || [];
+      session._generatingPromise = null;
+      console.log(`[Retrieval] Background generation completed (${session.dynamicQuestions.length} questions ready).`);
+      return session.dynamicQuestions;
+    })
+    .catch((err) => {
+      console.warn(`[Retrieval] Background generation error:`, err.message);
+      session.dynamicQuestions = [];
+      session._generatingPromise = null;
+      return null;
+    });
+
+  return session._generatingPromise;
+}
+
+/**
  * Deterministic fetch — pull active reference question by ID.
  * Priority:
  * 1. Session Dynamic Questions (generated from Resume/JD via Multi-Agent LLM)
@@ -115,8 +152,11 @@ export async function generateTailoredQuestions(session) {
 export async function getActiveQuestion(questionId, language = 'en', session = null, saveToSession = false) {
   // 1. DYNAMIC RESUME/JD PATH
   if (session) {
-    // Generate tailored questions if not yet created for this session
-    if (!session.dynamicQuestions && (session.resumeText || session.jdText || session.jobTitle)) {
+    // If background generation is still in progress, wait for it
+    if (session._generatingPromise) {
+      console.log(`[Retrieval] Waiting for in-flight background question generation...`);
+      await session._generatingPromise;
+    } else if (!session.dynamicQuestions && (session.resumeText || session.jdText || session.jobTitle)) {
       const generated = await generateTailoredQuestions(session);
       session.dynamicQuestions = generated || []; // cache result or mark attempted
     }

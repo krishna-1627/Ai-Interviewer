@@ -15,6 +15,7 @@ import * as pdfParseModule from 'pdf-parse';
 import mammoth from 'mammoth';
 import { createSession, getSession, updateSession } from '../session/sessionStore.js';
 import { SUPPORTED_LANGUAGES } from '../i18n/locales.js';
+import { startBackgroundQuestionGeneration } from '../pipeline/retrieval.js';
 
 const pdfParse = pdfParseModule.PDFParse || pdfParseModule.default || pdfParseModule;
 
@@ -175,6 +176,9 @@ router.post('/setup', (req, res, next) => {
       jobTitle: jobTitle.trim(),
       companyName: companyName.trim(),
     });
+
+    // Start background question generation immediately so questions are ready before Q1 starts
+    startBackgroundQuestionGeneration(session);
 
     res.json({
       sessionId: session.id,

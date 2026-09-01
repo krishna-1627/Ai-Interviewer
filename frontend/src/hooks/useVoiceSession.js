@@ -11,11 +11,12 @@ const WS_URL = import.meta.env.VITE_WS_URL || (isProd
 export function useVoiceSession() {
   const [status, setStatus] = useState('idle');
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [isStandby, setIsStandby] = useState(false);
   const [sessionId, setSessionId] = useState(null);
   const [language, setLanguage] = useState('en');
   const [transcript, setTranscript] = useState([]);
   const [errorMsg, setErrorMsg] = useState('');
-  const [questionIndex, setQuestionIndex] = useState(1);
+  const [questionIndex, setQuestionIndex] = useState(0);
   const [analyser, setAnalyser] = useState(null);
   
   const wsRef = useRef(null);
@@ -142,15 +143,24 @@ export function useVoiceSession() {
         const msg = JSON.parse(event.data);
         if (msg.type === 'status') {
           setStatus(msg.status);
+          if (msg.status === 'speaking' || msg.status === 'thinking') {
+            // If system is moving forward, clear standby
+            setIsStandby(false);
+          }
+        } else if (msg.type === 'standby') {
+          setIsStandby(true);
         } else if (msg.type === 'transcript') {
           setTranscript((prev) => [...prev, { role: msg.role, text: msg.text }]);
         } else if (msg.type === 'question_update') {
           setQuestionIndex(msg.questionNumber);
+          setIsStandby(false);
         } else if (msg.type === 'completed') {
           setStatus('completed');
+          setIsStandby(false);
         } else if (msg.type === 'error') {
           setStatus('error');
           setErrorMsg(msg.message);
+          setIsStandby(false);
         }
       }
     };
@@ -171,8 +181,9 @@ export function useVoiceSession() {
     try {
       setStatus('connecting');
       setErrorMsg('');
+      setIsStandby(false);
       setLanguage(lang);
-      setQuestionIndex(1);
+      setQuestionIndex(0);
 
       // Initialize Web Audio API on user interaction
       if (!audioContextRef.current) {
@@ -217,10 +228,19 @@ export function useVoiceSession() {
     }
   }, []);
 
+  const confirmReady = useCallback(() => {
+    setIsStandby(false);
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      console.log('[VoiceSession] Sending confirm_ready control message');
+      wsRef.current.send(JSON.stringify({ type: 'confirm_ready' }));
+    }
+  }, []);
+
   const endSession = useCallback(async () => {
     // IMMEDIATELY stop all audio
     stopAllAudio();
     setStatus('analyzing'); // Show immediate UI feedback
+    setIsStandby(false);
 
     // Close AudioContext to release system resources
     if (audioContextRef.current) {
@@ -270,6 +290,7 @@ export function useVoiceSession() {
   return {
     status,
     isAudioPlaying,
+    isStandby,
     sessionId,
     language,
     transcript,
@@ -278,6 +299,7 @@ export function useVoiceSession() {
     startSession,
     endSession,
     sendAudio,
+    confirmReady,
     nextQuestion,
     sendControlMessage,
     analyser

@@ -55,6 +55,9 @@ export function createSession({ language = 'en', resumeText = '', jdText = '', j
     llmCallCount: 0,
     sttCallCount: 0,
     isTimeUp: false,
+    greetingPhase: 'not_started', // 'not_started' | 'greeting_asked' | 'standby' | 'interview_started'
+    dynamicQuestions: null,
+    _generatingPromise: null,
     conclusionPhase: 'none', // 'none' | 'wrap_up_asked' | 'answering'
     history: [], // { role: 'interviewer'|'candidate', content: string, evaluation: object }
     questionResults: [], // per-question notes for feedback generation

@@ -6,12 +6,14 @@ export default function InterviewStage({ language, sessionId, onEnd }) {
   const {
     status,
     isAudioPlaying,
+    isStandby,
     transcript,
     errorMsg,
     questionIndex,
     startSession,
     endSession,
     sendAudio,
+    confirmReady,
     nextQuestion,
     sendControlMessage,
     analyser
@@ -49,10 +51,10 @@ export default function InterviewStage({ language, sessionId, onEnd }) {
   const [activeDuration, setActiveDuration] = useState(0);
   const [timeUpSent, setTimeUpSent] = useState(false);
   
-  // Tick active time when status is 'ready' or 'speaking' (Pauses automatically during 'processing' / system latency)
+  // Tick active time when technical interview is live (Question 1+ and not standby)
   useEffect(() => {
     let interval = null;
-    if (status === 'ready' || status === 'speaking') {
+    if (questionIndex >= 1 && !isStandby && (status === 'ready' || status === 'speaking')) {
       interval = setInterval(() => {
         setActiveDuration(prev => {
           const newTime = prev + 1;
@@ -68,7 +70,7 @@ export default function InterviewStage({ language, sessionId, onEnd }) {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [status, timeUpSent, sendControlMessage]);
+  }, [status, isStandby, questionIndex, timeUpSent, sendControlMessage]);
 
   const isAgentSpeaking = status === 'speaking' || isAudioPlaying;
 
@@ -626,16 +628,16 @@ export default function InterviewStage({ language, sessionId, onEnd }) {
 
   // Hands-free Auto-Recording: Starts automatically when AI finishes speaking and status is 'ready'
   useEffect(() => {
-    if (status === 'ready' && !isAudioPlaying && !isRecording && streamRef.current) {
+    if (status === 'ready' && !isAudioPlaying && !isRecording && !isStandby && streamRef.current) {
       const autoStartTimer = setTimeout(() => {
-        if (status === 'ready' && !isAudioPlaying && !isRecording) {
+        if (status === 'ready' && !isAudioPlaying && !isRecording && !isStandby) {
           console.log('[Auto-Record] AI finished speaking. Starting mic auto-recording...');
           startRecording();
         }
       }, 400);
       return () => clearTimeout(autoStartTimer);
     }
-  }, [status, isAudioPlaying, isRecording, startRecording]);
+  }, [status, isAudioPlaying, isRecording, isStandby, startRecording]);
 
   // Clean up VAD when unmounting
   useEffect(() => {
@@ -644,12 +646,12 @@ export default function InterviewStage({ language, sessionId, onEnd }) {
     };
   }, [cleanupVad]);
 
-  // Safety: If status leaves 'ready' (e.g. AI starts speaking or backend is processing), ensure recording is stopped
+  // Safety: If status leaves 'ready' or enters standby, ensure recording is stopped
   useEffect(() => {
-    if (status !== 'ready' && isRecording) {
+    if ((status !== 'ready' || isStandby) && isRecording) {
       stopRecording();
     }
-  }, [status, isRecording, stopRecording]);
+  }, [status, isStandby, isRecording, stopRecording]);
 
   const toggleCamera = () => {
     if (streamRef.current) {
@@ -837,6 +839,40 @@ export default function InterviewStage({ language, sessionId, onEnd }) {
             )}
           </div>
         </div>
+
+        {/* ── Standby Overlay when Candidate is getting ready ── */}
+        {isStandby && (
+          <div className="standby-floating-overlay" id="standby-modal">
+            <div className="standby-card">
+              <div className="standby-header">
+                <div className="standby-badge">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="10" y1="15" x2="10" y2="9"></line>
+                    <line x1="14" y1="15" x2="14" y2="9"></line>
+                  </svg>
+                  <span>INTERVIEW ON STANDBY</span>
+                </div>
+                <h3 className="standby-title">Take a moment to prepare</h3>
+                <p className="standby-desc">
+                  Your AI Interviewer is paused and ready whenever you are. Click below to begin your screening.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                id="confirm-ready-btn"
+                className="btn btn-primary btn-lg standby-action-btn"
+                onClick={confirmReady}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5,3 19,12 5,21"></polygon>
+                </svg>
+                <span>I'm Ready — Start Interview</span>
+              </button>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* ── Bottom Control Bar: 5 items centered in a row ── */}
